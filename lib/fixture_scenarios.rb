@@ -20,15 +20,15 @@ class Class
 end
 
 class Fixtures < YAML::Omap
+  
   def self.create_fixtures(fixtures_directory, table_names, file_names = {}, ruby_files = [], class_names = {}, connections = {} )
     table_names = [table_names].flatten.map { |n| n.to_s }
-    #connection = block_given? ? yield : ActiveRecord::Base.connection
     fixtures = []
     connections.each_pair do |connection, connection_table_names|
     
       ActiveRecord::Base.silence do
         fixtures_map = {}
-        #puts "Tables for connection: #{connection_table_names.inspect}"
+
         local_fixtures = connection_table_names.map do |table_name|
           class_names[table_name.to_sym]
           fixtures_map[table_name] = Fixtures.new(connection, File.split(table_name.to_s).last, class_names[table_name.to_sym], file_names[table_name] || [File.join(fixtures_directory, table_name.to_s)])
@@ -196,6 +196,17 @@ module Test #:nodoc:
         setup_fixture_accessors(table_names)
       end
       
+      # Create fixtures from files in a scenario directory
+      #
+      # == Options
+      #
+      # * root - Load fixtures from the fixtures root directory as well as the scenario
+      # * connection - Use a connection for the fixtures in this scenario other than ActiveRecord::Base.connection
+      #
+      # == Usage
+      #   
+      #    scenario :external_db_fixtures, :connection => ExternalModel.connection
+      #
       def self.scenario(scenario_name = nil, options = {})
         # handle options
         defaults = {:root => self.scenarios_load_root_fixtures, :connection => ActiveRecord::Base.connection }
