@@ -185,7 +185,7 @@ module Test #:nodoc:
         
         table_names.each do |table_name|
           self.fixture_file_names[table_name] ||= []
-          self.fixture_file_names[table_name] << "#{self.fixture_path}#{table_name}.yml"
+          self.fixture_file_names[table_name] << "#{self.fixture_path}/#{table_name}.yml"
         end
         
         self.fixture_table_names |= table_names
