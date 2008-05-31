@@ -199,7 +199,7 @@ module Test #:nodoc:
         options = defaults.merge(options)
         
         # find the scenario directory
-        scenario_path = Dir.glob("#{self.fixture_path}**/*").grep(Regexp.new("/#{scenario_name}$")).first
+        scenario_path = Dir.glob("#{self.fixture_path}/**/*").grep(Regexp.new("/#{scenario_name}$")).first
         scenario_path = scenario_path[self.fixture_path.length..scenario_path.length]
         scenario_dirs = scenario_path.split('/').unshift('')
 
@@ -207,7 +207,7 @@ module Test #:nodoc:
         scenario_paths = []
         while !scenario_dirs.empty?
           unless !options[:root] && scenario_dirs.size == 1
-            scenario_paths << self.fixture_path.chop + scenario_dirs.join('/')
+            scenario_paths << self.fixture_path + scenario_dirs.join('/')
           end
           scenario_dirs.pop
         end
