@@ -158,41 +158,58 @@ module Test
   end
 end
 
-module Test #:nodoc:
-  module Unit #:nodoc:
-    class TestCase #:nodoc:
-      class_inheritable_accessor :fixture_file_names
-      class_inheritable_accessor :ruby_file_names
-      
-      class_inheritable_accessor :scenarios_load_root_fixtures
-      
-      self.ruby_file_names = []
-      self.fixture_file_names = {}
-      
-      self.scenarios_load_root_fixtures = true
-      
-      def self.finish
+module FixtureScenario #:nodoc:
+  module TestCase #:nodoc:
+    def self.included(base)
+      base.extend(ClassMethods)
+      base.class_eval do
+        class_inheritable_accessor :fixture_file_names
+        class_inheritable_accessor :ruby_file_names
+        class_inheritable_accessor :scenarios_load_root_fixtures
+
+        private
+
+        def load_fixtures
+          @loaded_fixtures = {}
+          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names)
+          unless fixtures.nil?
+            if fixtures.instance_of?(Fixtures)
+              @loaded_fixtures[fixtures.table_name.split('.').last] = fixtures
+            else
+              fixtures.each { |f| @loaded_fixtures[f.table_name.split('.').last] = f }
+            end
+          end
+        end
+      end
+
+      base.ruby_file_names              = []
+      base.fixture_file_names           = {}
+      base.scenarios_load_root_fixtures = true
+    end
+
+    module ClassMethods
+      def finish
         Fixtures.destroy_fixtures(fixture_table_names)
       end
-      
-      def self.fixtures(*table_names)
+
+      def fixtures(*table_names)
         table_names = table_names.flatten.map { |n| n.to_s }
-        
+
         table_names.each do |table_name|
           self.fixture_file_names[table_name] ||= []
           self.fixture_file_names[table_name] << "#{self.fixture_path}#{table_name}.yml"
         end
-        
+
         self.fixture_table_names |= table_names
         require_fixture_classes(table_names)
         setup_fixture_accessors(table_names)
       end
-      
-      def self.scenario(scenario_name = nil, options = {})
+
+      def scenario(scenario_name = nil, options = {})
         # handle options
         defaults = {:root => self.scenarios_load_root_fixtures}
         options = defaults.merge(options)
-        
+
         # find the scenario directory
         scenario_path = Dir.glob("#{self.fixture_path}**/*").grep(Regexp.new("/#{scenario_name}$")).first
         scenario_path = scenario_path[self.fixture_path.length..scenario_path.length]
@@ -207,7 +224,7 @@ module Test #:nodoc:
           scenario_dirs.pop
         end
         scenario_paths.reverse!
-                
+
         # collect the list of yaml and ruby files
         yaml_files = []
         ruby_files = []
@@ -215,7 +232,7 @@ module Test #:nodoc:
           yaml_files |= Dir.glob("#{path}/*.y{am,m}l")
           ruby_files |= Dir.glob("#{path}/*.rb")
         end
-                
+
         # collect table names
         table_names = []
         yaml_files.each do |file_path|
@@ -225,17 +242,18 @@ module Test #:nodoc:
           self.fixture_file_names[table_name] ||= []
           self.fixture_file_names[table_name] << file_path
         end
-        
+
+
         # collect ruby files
         self.ruby_file_names |= ruby_files
-                
+
         self.fixture_table_names |= table_names
-        
+
         require_fixture_classes(table_names)
         setup_fixture_accessors(table_names)
       end
-      
-      def self.setup_fixture_accessors(table_names=nil)
+
+      def setup_fixture_accessors(table_names=nil)
         (table_names || fixture_table_names).each do |table_name|
           table_name = table_name.split('.').last
           define_method(table_name) do |fixture, *optionals|
@@ -250,19 +268,16 @@ module Test #:nodoc:
           end
         end
       end
-      
-      private
-        def load_fixtures
-          @loaded_fixtures = {}
-          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names)
-          unless fixtures.nil?
-            if fixtures.instance_of?(Fixtures)
-              @loaded_fixtures[fixtures.table_name.split('.').last] = fixtures
-            else
-              fixtures.each { |f| @loaded_fixtures[f.table_name.split('.').last] = f }
-            end
-          end
-        end
     end
   end
+end
+
+if ActiveSupport.const_defined?(:TestCase)
+  class ActiveSupport::TestCase
+    include FixtureScenario::TestCase
+  end
+end
+
+class Test::Unit::TestCase
+  include FixtureScenario::TestCase
 end
