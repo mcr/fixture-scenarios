@@ -1,4 +1,11 @@
 Copyright (c) 2007 Tom Preston-Werner
+Copyright (c) 2008 Kevin Lingerfelt
+Copyright (c) 2008 Nick Hengeveld
+Copyright (c) 2008 Pelle Braendgaard
+Copyright (c) 2008 Ed Sinjiashvil
+Copyright (c) 2008 Eric Stewart
+Copyright (c) 2008 Tim Charper
+Copyright (c) 2009 Michael Richardson
 
 =FixtureScenarios
 
@@ -8,14 +15,17 @@ and ruby files that represent a context against which you can run tests.
 ==Disclaimer
 
 This software is in Beta.
-Send feedback to tom at rubyisawesome dot com or find me (mojombo) on irc.freenode.net.
+Original by tom at rubyisawesome dot com or 
+	find me (mojombo) on irc.freenode.net.
+
+This version merged by Michael Richardson <mcr@sandelman.ca>
 
 ==Installation
 
 FixtureScenarios should work on both 1.1.6 and edge rails.
 Currently you must install this plugin from the subversion repository
 
-  script/plugin install http://fixture-scenarios.googlecode.com/svn/trunk/fixture_scenarios
+  script/plugin install git://github.com/mojombo/fixture-scenarios.git
 
 ==WARNING
 
