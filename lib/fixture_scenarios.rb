@@ -86,11 +86,13 @@ class Fixtures < YAML::Omap
             yaml_string << IO.read(yaml_file_path(fixture_path)) << "\n"
           end
 
-          if yaml = YAML::load(erb_render(yaml_string))
-            yaml = yaml.value if yaml.respond_to?(:type_id) and yaml.respond_to?(:value)
-            yaml.each do |name, data|
-              self[name] = Fixture.new(data, @class_name)
-            end
+          if yaml_stream = YAML::load_stream(erb_render(yaml_string))
+            yaml_stream.documents.each {|yaml|
+              yaml = yaml.value if yaml.respond_to?(:type_id) and yaml.respond_to?(:value)
+              yaml.each do |name, data|
+                self[name] = Fixture.new(data, @class_name)
+              end
+            }
           end
         rescue Exception=>boom
           raise Fixture::FormatError, "a YAML error occurred parsing one of #{(@fixture_paths.map { |o| yaml_file_path(o) }).inspect}. Please note that YAML must be consistently indented using spaces. Tabs are not allowed. Please have a look at http://www.yaml.org/faq.html\nThe exact error was:\n  #{boom.class}: #{boom}"
