@@ -186,7 +186,12 @@ module Test #:nodoc:
       end
       
       def self.fixtures(*table_names)
-        table_names = table_names.flatten.map { |n| n.to_s }
+        if table_names.first == :all
+          table_names = Dir["#{fixture_path}/*.yml"] + Dir["#{fixture_path}/*.csv"]
+          table_names.map! { |f| File.basename(f).split('.')[0..-2].join('.') }
+        else
+          table_names = table_names.flatten.map { |n| n.to_s }
+        end
         
         table_names.each do |table_name|
           self.fixture_file_names[table_name] ||= []
