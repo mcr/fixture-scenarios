@@ -20,32 +20,38 @@ class Class
 end
 
 class Fixtures < YAML::Omap
-  def self.create_fixtures(fixtures_directory, table_names, file_names = {}, ruby_files = [], class_names = {})
+  
+  def self.create_fixtures(fixtures_directory, table_names, file_names = {}, ruby_files = [], class_names = {}, connections = {} )
     table_names = [table_names].flatten.map { |n| n.to_s }
-    connection = block_given? ? yield : ActiveRecord::Base.connection
-    ActiveRecord::Base.silence do
-      fixtures_map = {}
-      fixtures = table_names.map do |table_name|
-        fixtures_map[table_name] = Fixtures.new(connection, File.split(table_name.to_s).last, class_names[table_name.to_sym], file_names[table_name] || [File.join(fixtures_directory, table_name.to_s)])
-      end
-      all_loaded_fixtures.merge! fixtures_map
-      
-      connection.transaction(Thread.current['open_transactions'] == 0) do
-        fixtures.reverse.each { |fixture| fixture.delete_existing_fixtures }
-        fixtures.each { |fixture| fixture.insert_fixtures }
-        
-        ruby_files.each { |ruby_file| require ruby_file }
+    fixtures = []
+    connections.each_pair do |connection, connection_table_names|
+    
+      ActiveRecord::Base.silence do
+        fixtures_map = {}
 
-        # Cap primary key sequences to max(pk).
-        if connection.respond_to?(:reset_pk_sequence!)
-          table_names.each do |table_name|
-            connection.reset_pk_sequence!(table_name)
+        local_fixtures = connection_table_names.map do |table_name|
+          class_names[table_name.to_sym]
+          fixtures_map[table_name] = Fixtures.new(connection, File.split(table_name.to_s).last, class_names[table_name.to_sym], file_names[table_name] || [File.join(fixtures_directory, table_name.to_s)])
+        end
+        all_loaded_fixtures.merge! fixtures_map
+        
+        connection.transaction(Thread.current['open_transactions'] == 0) do
+          local_fixtures.reverse.each { |fixture| fixture.delete_existing_fixtures }
+          local_fixtures.each { |fixture| fixture.insert_fixtures }
+          
+          ruby_files.each { |ruby_file| require ruby_file }
+  
+          # Cap primary key sequences to max(pk).
+          if connection.respond_to?(:reset_pk_sequence!)
+             connection_table_names.each do |table_name|
+               connection.reset_pk_sequence!(table_name)
+            end
           end
         end
+        fixtures += local_fixtures
       end
-
-      return fixtures.size > 1 ? fixtures : fixtures.first
     end
+    return fixtures.size > 1 ? fixtures : fixtures.first
   end
   
   def self.destroy_fixtures(table_names)
@@ -163,11 +169,13 @@ module Test #:nodoc:
     class TestCase #:nodoc:
       class_inheritable_accessor :fixture_file_names
       class_inheritable_accessor :ruby_file_names
+      class_inheritable_accessor :fixture_connections
       
       class_inheritable_accessor :scenarios_load_root_fixtures
       
       self.ruby_file_names = []
       self.fixture_file_names = {}
+      self.fixture_connections = {}
       
       self.scenarios_load_root_fixtures = true
       
@@ -188,10 +196,25 @@ module Test #:nodoc:
         setup_fixture_accessors(table_names)
       end
       
+      # Create fixtures from files in a scenario directory
+      #
+      # == Options
+      #
+      # * root - Load fixtures from the fixtures root directory as well as the scenario
+      # * connection - Use a connection for the fixtures in this scenario other than ActiveRecord::Base.connection
+      #
+      # == Usage
+      #   
+      #    scenario :external_db_fixtures, :connection => ExternalModel.connection
+      #
       def self.scenario(scenario_name = nil, options = {})
         # handle options
-        defaults = {:root => self.scenarios_load_root_fixtures}
+        defaults = {:root => self.scenarios_load_root_fixtures, :connection => ActiveRecord::Base.connection }
         options = defaults.merge(options)
+        
+         
+         fixture_connections[options[:connection]] ||= []
+
         
         # find the scenario directory
         scenario_path = Dir.glob("#{self.fixture_path}**/*").grep(Regexp.new("/#{scenario_name}$")).first
@@ -222,6 +245,7 @@ module Test #:nodoc:
           file_name = file_path.split("/").last
           table_name = file_name[0..file_name.rindex('.') - 1]
           table_names << table_name
+          fixture_connections[options[:connection]] << table_name
           self.fixture_file_names[table_name] ||= []
           self.fixture_file_names[table_name] << file_path
         end
@@ -233,12 +257,13 @@ module Test #:nodoc:
         
         require_fixture_classes(table_names)
         setup_fixture_accessors(table_names)
+        
       end
             
       private
         def load_fixtures
           @loaded_fixtures = {}
-          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names)
+          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names, fixture_connections)
           unless fixtures.nil?
             if fixtures.instance_of?(Fixtures)
               @loaded_fixtures[fixtures.table_name.split('.').last] = fixtures
