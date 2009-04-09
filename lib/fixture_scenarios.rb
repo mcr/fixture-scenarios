@@ -184,26 +184,45 @@ module Test
   end
 end
 
-module Test #:nodoc:
-  module Unit #:nodoc:
-    class TestCase #:nodoc:
-      class_inheritable_accessor :fixture_file_names
-      class_inheritable_accessor :ruby_file_names
-      class_inheritable_accessor :fixture_connections
+module FixtureScenario #:nodoc:
+  module TestCase #:nodoc:
+    def self.included(base)
+      base.extend(ClassMethods)
+      base.class_eval do
+        class_inheritable_accessor :fixture_file_names
+        class_inheritable_accessor :ruby_file_names
+        class_inheritable_accessor :scenarios_load_root_fixtures
+        class_inheritable_accessor :fixture_connections
       
-      class_inheritable_accessor :scenarios_load_root_fixtures
-      
+	class_inheritable_accessor :scenarios_load_root_fixtures
+
+	private
+
+        def load_fixtures
+          @loaded_fixtures = {}
+          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names)
+          unless fixtures.nil?
+            if fixtures.instance_of?(Fixtures)
+              @loaded_fixtures[fixtures.table_name.split('.').last] = fixtures
+            else
+              fixtures.each { |f| @loaded_fixtures[f.table_name.split('.').last] = f }
+            end
+          end
+        end
+      end
+	
       self.ruby_file_names = []
       self.fixture_file_names = {}
       self.fixture_connections = {}
-      
       self.scenarios_load_root_fixtures = true
-      
-      def self.finish
+    end
+
+    module ClassMethods
+      def finish
         Fixtures.destroy_fixtures(fixture_table_names)
       end
       
-      def self.fixtures(*table_names)
+      def fixtures(*table_names)
         if table_names.first == :all
           table_names = Dir["#{fixture_path}/*.yml"] + Dir["#{fixture_path}/*.csv"]
           table_names.map! { |f| File.basename(f).split('.')[0..-2].join('.') }
@@ -232,7 +251,7 @@ module Test #:nodoc:
       #   
       #    scenario :external_db_fixtures, :connection => ExternalModel.connection
       #
-      def self.scenario(scenario_name = nil, options = {})
+      def scenario(scenario_name = nil, options = {})
         # handle options
         defaults = {:root => self.scenarios_load_root_fixtures, :connection => ActiveRecord::Base.connection }
         options = defaults.merge(options)
@@ -284,19 +303,16 @@ module Test #:nodoc:
         setup_fixture_accessors(table_names)
         
       end
-            
-      private
-        def load_fixtures
-          @loaded_fixtures = {}
-          fixtures = Fixtures.create_fixtures(fixture_path, fixture_table_names, fixture_file_names, ruby_file_names, fixture_class_names, fixture_connections)
-          unless fixtures.nil?
-            if fixtures.instance_of?(Fixtures)
-              @loaded_fixtures[fixtures.table_name.split('.').last] = fixtures
-            else
-              fixtures.each { |f| @loaded_fixtures[f.table_name.split('.').last] = f }
-            end
-          end
-        end
     end
   end
+end
+
+if ActiveSupport.const_defined?(:TestCase)
+  class ActiveSupport::TestCase
+    include FixtureScenario::TestCase
+  end
+end
+
+class Test::Unit::TestCase
+  include FixtureScenario::TestCase
 end
