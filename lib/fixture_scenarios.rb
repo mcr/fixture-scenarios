@@ -209,12 +209,12 @@ module FixtureScenario #:nodoc:
             end
           end
         end
-      end
 	
-      self.ruby_file_names = []
-      self.fixture_file_names = {}
-      self.fixture_connections = {}
-      self.scenarios_load_root_fixtures = true
+	self.ruby_file_names = []
+	self.fixture_file_names = {}
+	self.fixture_connections = {}
+	self.scenarios_load_root_fixtures = true
+      end
     end
 
     module ClassMethods
