@@ -111,6 +111,16 @@ fixture/Ruby files in "fixtures", then in "brand_new_user", then in
 redundancy to a minimum, and makes it easy to change data for multiple
 scenarios simultaneously.
 
+==Multiple Databases
+
+If your fixtures cross multiple database connections, you can set the
+connection in each test when you load the scenario using :connection
+
+connection - Use a connection for the fixtures in this scenario other than ActiveRecord::Base.connection
+
+===Usage
+   	scenario :external_db_fixtures, :connection => ExternalModel.connection
+
 ==Testing your scenarios
 
 Scenarios represent your assumptions about a given context. If these
