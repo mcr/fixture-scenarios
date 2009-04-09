@@ -111,6 +111,9 @@ fixture/Ruby files in "fixtures", then in "brand_new_user", then in
 redundancy to a minimum, and makes it easy to change data for multiple
 scenarios simultaneously.
 
+Nesting scenarios can add and override parent fixtures by just mentioning
+a fixture by the same name.  It will replace the parent fixture.
+
 ==Multiple Databases
 
 If your fixtures cross multiple database connections, you can set the
